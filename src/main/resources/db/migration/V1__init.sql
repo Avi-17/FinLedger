@@ -40,6 +40,7 @@ CREATE TABLE expense_splits (
     status          TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID')),
     paid_via        TEXT CHECK (paid_via IN ('SELF', 'RAZORPAY', 'CASH')),
     paid_at         TIMESTAMPTZ,
+    note            TEXT,
     PRIMARY KEY (expense_id, user_id),
     CHECK ((status = 'PAID') = (paid_at IS NOT NULL AND paid_via IS NOT NULL))
 );
