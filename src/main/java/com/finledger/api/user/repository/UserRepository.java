@@ -1,5 +1,6 @@
-package com.finledger.api.user;
+package com.finledger.api.user.repository;
 
+import com.finledger.api.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

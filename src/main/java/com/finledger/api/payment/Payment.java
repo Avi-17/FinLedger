@@ -1,14 +1,18 @@
 package com.finledger.api.payment;
 
+import com.finledger.api.common.BusinessRuleException;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/** One Razorpay order for one share. State machine: CREATED -> CAPTURED or CREATED -> FAILED. */
 @Entity
 @Table(name = "payments")
-@Getter @Setter @NoArgsConstructor
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Payment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,7 +32,7 @@ public class Payment {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
-    @jakarta.persistence.Enumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status = Status.CREATED;
 
@@ -41,4 +45,28 @@ public class Payment {
     private Instant updatedAt;
 
     public enum Status { CREATED, CAPTURED, FAILED }
+
+    public static Payment create(Long expenseId, Long userId, String razorpayOrderId, BigDecimal amount) {
+        Payment p = new Payment();
+        p.expenseId = expenseId;
+        p.userId = userId;
+        p.razorpayOrderId = razorpayOrderId;
+        p.amount = amount;
+        return p;
+    }
+
+    public boolean isCreated() { return status == Status.CREATED; }
+
+    /** CREATED -> CAPTURED. */
+    public void capture(String razorpayPaymentId) {
+        if (!isCreated()) throw new BusinessRuleException("Payment is already " + status);
+        this.razorpayPaymentId = razorpayPaymentId;
+        this.status = Status.CAPTURED;
+    }
+
+    /** CREATED -> FAILED. */
+    public void fail() {
+        if (!isCreated()) throw new BusinessRuleException("Payment is already " + status);
+        this.status = Status.FAILED;
+    }
 }

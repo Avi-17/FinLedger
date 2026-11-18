@@ -1,15 +1,17 @@
-package com.finledger.api.group;
+package com.finledger.api.expense.domain;
 
+import com.finledger.api.common.BusinessRuleException;
 import jakarta.persistence.*;
 import lombok.*;
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/** One person's share of an Expense. State machine: PENDING -> PAID (once). */
 @Entity
 @Table(name = "expense_splits")
-@IdClass(ExpenseSplit.Key.class)
-@Getter @Setter @NoArgsConstructor
+@IdClass(ExpenseSplitId.class)
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ExpenseSplit {
     @Id @Column(name = "expense_id")
     private Long expenseId;
@@ -33,23 +35,24 @@ public class ExpenseSplit {
 
     private String note;
 
+    public enum Status { PENDING, PAID }
+    public enum PaidVia { SELF, RAZORPAY, CASH }
+
     public ExpenseSplit(Long expenseId, Long userId, BigDecimal amountOwed) {
-        this.expenseId = expenseId; this.userId = userId; this.amountOwed = amountOwed;
+        this.expenseId = expenseId;
+        this.userId = userId;
+        this.amountOwed = amountOwed;
     }
 
+    public boolean isPending() { return status == Status.PENDING; }
+    public boolean isPaid() { return status == Status.PAID; }
+
+    /** PENDING -> PAID. Throws if already paid, so a share can never be paid twice. */
     public void markPaid(PaidVia via, String note) {
+        if (isPaid()) throw new BusinessRuleException("This share is already paid");
         this.status = Status.PAID;
         this.paidVia = via;
         this.paidAt = Instant.now();
         this.note = note;
-    }
-
-    public enum Status { PENDING, PAID }
-    public enum PaidVia { SELF, RAZORPAY, CASH }
-
-    @Data @NoArgsConstructor @AllArgsConstructor
-    public static class Key implements Serializable {
-        private Long expenseId;
-        private Long userId;
     }
 }

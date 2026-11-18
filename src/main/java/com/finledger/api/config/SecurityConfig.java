@@ -1,6 +1,6 @@
 package com.finledger.api.config;
 
-import com.finledger.api.auth.JwtFilter;
+import com.finledger.api.auth.service.JwtFilter;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;

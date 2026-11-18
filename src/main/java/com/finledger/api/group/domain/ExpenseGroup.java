@@ -1,4 +1,4 @@
-package com.finledger.api.group;
+package com.finledger.api.group.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,7 +8,8 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "expense_groups")
-@Getter @Setter @NoArgsConstructor
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ExpenseGroup {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,4 +23,11 @@ public class ExpenseGroup {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static ExpenseGroup create(String name, Long createdBy) {
+        ExpenseGroup g = new ExpenseGroup();
+        g.name = name.trim();
+        g.createdBy = createdBy;
+        return g;
+    }
 }

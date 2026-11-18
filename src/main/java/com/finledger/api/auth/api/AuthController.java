@@ -1,8 +1,7 @@
-package com.finledger.api.auth;
+package com.finledger.api.auth.api;
 
-import com.finledger.api.auth.AuthDtos.*;
-import com.finledger.api.common.ApiException;
-import com.finledger.api.user.UserRepository;
+import com.finledger.api.auth.api.AuthDtos.*;
+import com.finledger.api.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
-    private final UserRepository users;
 
     @PostMapping("/auth/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -23,10 +21,7 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest req) { return authService.login(req); }
 
     @GetMapping("/me")
-    public UserDto me(@AuthenticationPrincipal Long userId) {
-        var u = users.findById(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserDto(u.getId(), u.getEmail(), u.getName());
-    }
+    public UserDto me(@AuthenticationPrincipal Long userId) { return authService.me(userId); }
 
     @GetMapping("/health")
     public String health() { return "ok"; }

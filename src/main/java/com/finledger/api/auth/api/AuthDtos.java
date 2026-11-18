@@ -1,4 +1,4 @@
-package com.finledger.api.auth;
+package com.finledger.api.auth.api;
 
 import jakarta.validation.constraints.*;
 
