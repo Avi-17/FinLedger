@@ -1,4 +1,6 @@
-package com.finledger.api.group;
+package com.finledger.api.expense.repository;
+
+import com.finledger.api.expense.domain.Expense;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.*;

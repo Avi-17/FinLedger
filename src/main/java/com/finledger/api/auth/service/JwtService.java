@@ -1,4 +1,4 @@
-package com.finledger.api.auth;
+package com.finledger.api.auth.service;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;

@@ -1,4 +1,7 @@
-package com.finledger.api.group;
+package com.finledger.api.group.repository;
+
+import com.finledger.api.group.domain.ExpenseGroup;
+import com.finledger.api.group.domain.GroupMember;
 
 import org.springframework.data.jpa.repository.*;
 import java.util.List;
