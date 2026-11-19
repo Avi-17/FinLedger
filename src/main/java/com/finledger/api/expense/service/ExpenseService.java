@@ -1,5 +1,6 @@
 package com.finledger.api.expense.service;
 
+import com.finledger.api.common.BusinessRuleException;
 import com.finledger.api.expense.domain.Expense;
 import com.finledger.api.expense.domain.ExpenseSplit;
 import com.finledger.api.expense.domain.ExpenseSplitId;
@@ -96,7 +97,7 @@ public class ExpenseService {
     }
 
     /** Call after any share becomes PAID, with the expense row locked. Reused by the payment webhook. */
-    public void settleIfComplete(Expense e) {
+    private void settleIfComplete(Expense e) {
         splits.flush();   // make sure the share just marked PAID is counted
         if (e.isOpen() && splits.countByExpenseIdAndStatus(e.getId(), ExpenseSplit.Status.PENDING) == 0)
             e.settle();
@@ -106,5 +107,33 @@ public class ExpenseService {
         Expense e = expenses.lockById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found"));
         if (!e.isRequester(userId)) throw new ForbiddenException("Only the requester can do this");
         return e;
+    }
+
+    /**
+     * Used by the payment module before creating an order. Locks the expense row so two taps
+     * can't create two orders at once. Returns the caller's unpaid share.
+     */
+    @Transactional
+    public ExpenseSplit lockPayableShare(Long userId, Long expenseId) {
+        Expense e = expenses.lockById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found"));
+        access.requireMember(e.getGroupId(), userId);
+        if (e.isRequester(userId)) throw new BusinessRuleException("You created this request, there is nothing to pay");
+        e.requireOpen();
+
+        ExpenseSplit s = splits.findById(new ExpenseSplitId(expenseId, userId))
+                .orElseThrow(() -> new BusinessRuleException("You are not part of this split"));
+        if (!s.isPending()) throw new BusinessRuleException("Your share is already paid");
+        return s;
+    }
+
+    /** Used by the payment module once Razorpay confirms a capture. Safe to call twice. */
+    @Transactional
+    public void recordOnlinePayment(Long expenseId, Long userId) {
+        Expense e = expenses.lockById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found"));
+        ExpenseSplit s = splits.findById(new ExpenseSplitId(expenseId, userId))
+                .orElseThrow(() -> new NotFoundException("Share not found"));
+        if (!s.isPending()) return;                       // already PAID (e.g. marked as cash meanwhile)
+        s.markPaid(ExpenseSplit.PaidVia.RAZORPAY, null);
+        settleIfComplete(e);
     }
 }

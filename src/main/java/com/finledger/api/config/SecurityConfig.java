@@ -20,7 +20,7 @@ public class SecurityConfig {
                 .csrf(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/auth/**", "/health", "/webhooks/razorpay", "/error").permitAll()
+                        .requestMatchers("/auth/**", "/health", "/webhooks/razorpay", "/error", "/checkout-test.html").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

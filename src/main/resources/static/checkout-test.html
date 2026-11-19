@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FinLedger checkout test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 520px; margin: 32px auto; padding: 0 16px; }
+        input, button { font-size: 16px; padding: 8px; margin: 4px 0; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; }
+        pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; font-size: 13px; }
+    </style>
+</head>
+<body>
+<h2>FinLedger · Razorpay test</h2>
+<input id="email" value="priya@test.com">
+<input id="password" type="password" value="password123">
+<input id="expenseId" placeholder="Expense id to pay">
+<button onclick="payShare()">Login &amp; Pay my share</button>
+<pre id="log"></pre>
+
+<script>
+    const log = (msg, obj) => {
+        document.getElementById('log').textContent += msg + (obj ? ' ' + JSON.stringify(obj, null, 2) : '') + '\n';
+    };
+
+    async function api(path, { token, method = 'GET', body } = {}) {
+        const res = await fetch(path, {
+            method,
+            headers: { 'Content-Type': 'application/json', ...(token && { Authorization: 'Bearer ' + token }) },
+            body: body && JSON.stringify(body),
+        });
+        const data = res.status === 204 ? null : await res.json().catch(() => null);
+        if (!res.ok) throw new Error((data && data.error) || res.status);
+        return data;
+    }
+
+    async function payShare() {
+        document.getElementById('log').textContent = '';
+        try {
+            // 1. login
+            const { token } = await api('/auth/login', { method: 'POST', body: {
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value } });
+            log('1. logged in');
+
+            // 2. create / reuse order
+            const order = await api(`/expenses/${document.getElementById('expenseId').value}/pay`, { token, method: 'POST' });
+            log('2. order', order);
+
+            // 3. open Razorpay Checkout
+            const rzp = new Razorpay({
+                key: order.keyId,
+                order_id: order.orderId,
+                amount: order.amountPaise,
+                currency: order.currency,
+                name: 'FinLedger',
+                description: order.description,
+                handler: async (resp) => {
+                    log('3. checkout success', resp);
+                    // 4. verify signature (fast feedback, does not mark paid)
+                    const v = await api('/payments/verify', { token, method: 'POST', body: {
+                            orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature } });
+                    log('4. verified, status now', v.status);
+                    // 5. poll until the webhook has marked it CAPTURED
+                    poll(token, order.orderId, 0);
+                },
+                modal: { ondismiss: () => log('checkout closed') },
+            });
+            rzp.on('payment.failed', (r) => log('payment failed', r.error));
+            rzp.open();
+        } catch (e) {
+            log('error: ' + e.message);
+        }
+    }
+
+    async function poll(token, orderId, attempt) {
+        const s = await api('/payments/' + orderId, { token });
+        log(`5. poll #${attempt + 1}: ${s.status}`);
+        if (s.status === 'CAPTURED') return log('done, share is PAID');
+        if (attempt < 14) setTimeout(() => poll(token, orderId, attempt + 1), 2000);
+        else log('webhook not received after 30s, check the tunnel and the webhook URL');
+    }
+</script>
+</body>
+</html>

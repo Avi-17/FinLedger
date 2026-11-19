@@ -1,4 +1,4 @@
-package com.finledger.api.payment;
+package com.finledger.api.payment.domain;
 
 import com.finledger.api.common.BusinessRuleException;
 import jakarta.persistence.*;
@@ -55,11 +55,21 @@ public class Payment {
         return p;
     }
 
-    public boolean isCreated() { return status == Status.CREATED; }
+    public boolean isCreated() {
+        return status == Status.CREATED;
+    }
 
-    /** CREATED -> CAPTURED. */
+    public boolean isCaptured() {
+        return status == Status.CAPTURED;
+    }
+
+    public boolean hasAmountPaise(long paise) {
+        return amount.movePointRight(2).longValueExact() == paise;
+    }
+
+    /** CREATED/FAILED -> CAPTURED. FAILED is allowed because a user can retry the same order after a failed attempt. */
     public void capture(String razorpayPaymentId) {
-        if (!isCreated()) throw new BusinessRuleException("Payment is already " + status);
+        if (isCaptured()) throw new BusinessRuleException("Payment is already captured");
         this.razorpayPaymentId = razorpayPaymentId;
         this.status = Status.CAPTURED;
     }
