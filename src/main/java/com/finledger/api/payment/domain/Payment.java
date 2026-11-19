@@ -8,7 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/** One Razorpay order for one share. State machine: CREATED -> CAPTURED or CREATED -> FAILED. */
+/** One Razorpay order for one share. State machine: CREATED -> CAPTURED | FAILED, and FAILED -> CAPTURED (retry on the same order). */
 @Entity
 @Table(name = "payments")
 @Getter
@@ -63,8 +63,12 @@ public class Payment {
         return status == Status.CAPTURED;
     }
 
+    public long amountPaise() {
+        return amount.movePointRight(2).longValueExact();
+    }
+
     public boolean hasAmountPaise(long paise) {
-        return amount.movePointRight(2).longValueExact() == paise;
+        return amountPaise() == paise;
     }
 
     /** CREATED/FAILED -> CAPTURED. FAILED is allowed because a user can retry the same order after a failed attempt. */

@@ -20,4 +20,10 @@ public interface PaymentGateway {
 
     /** Turns a (signature-checked) webhook body into a GatewayEvent. */
     GatewayEvent parseWebhook(String rawBody);
+
+    /**
+     * Asks the provider for the current state of a payment (used for reconciliation when a webhook is late).
+     * Returns CAPTURED / FAILED, or IGNORED if it is still in progress or the provider can't be reached.
+     */
+    GatewayEvent fetchPayment(String paymentId);
 }
