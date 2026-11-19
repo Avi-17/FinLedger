@@ -5,12 +5,14 @@ import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 
 /** Translates our PaymentGateway calls into Razorpay SDK calls. The only class that imports com.razorpay. */
+@Slf4j
 @Component
 @EnableConfigurationProperties(RazorpayProperties.class)
 public class RazorpayGateway implements PaymentGateway {
@@ -62,7 +64,7 @@ public class RazorpayGateway implements PaymentGateway {
     @Override
     public String publicKey() { return props.keyId(); }
 
-    public static long toPaise(BigDecimal rupees) {
+    private static long toPaise(BigDecimal rupees) {
         return rupees.movePointRight(2).longValueExact();
     }
 
@@ -77,6 +79,27 @@ public class RazorpayGateway implements PaymentGateway {
         if (type == GatewayEvent.Type.IGNORED) return GatewayEvent.ignored();
 
         JSONObject p = root.getJSONObject("payload").getJSONObject("payment").getJSONObject("entity");
-        return new GatewayEvent(type, p.getString("order_id"), p.getString("id"), p.getLong("amount"));
+        return toEvent(type, p);
+    }
+
+    @Override
+    public GatewayEvent fetchPayment(String paymentId) {
+        try {
+            JSONObject p = client.payments.fetch(paymentId).toJson();
+            GatewayEvent.Type type = switch (p.optString("status")) {
+                case "captured" -> GatewayEvent.Type.CAPTURED;
+                case "failed"   -> GatewayEvent.Type.FAILED;
+                default -> GatewayEvent.Type.IGNORED;      // created / authorized / refunded: nothing to record yet
+            };
+            return type == GatewayEvent.Type.IGNORED ? GatewayEvent.ignored() : toEvent(type, p);
+        } catch (RazorpayException e) {
+            log.warn("Could not fetch payment {} from Razorpay: {}", paymentId, e.getMessage());
+            return GatewayEvent.ignored();                 // fall back to waiting for the webhook
+        }
+    }
+
+    /** Razorpay payment entity (same shape in webhooks and in the Payments API) -> our GatewayEvent. */
+    private static GatewayEvent toEvent(GatewayEvent.Type type, JSONObject p) {
+        return new GatewayEvent(type, p.optString("order_id", null), p.getString("id"), p.getLong("amount"));
     }
 }
