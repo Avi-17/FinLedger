@@ -32,6 +32,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
     }
 
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<Map<String, String>> gateway(PaymentGatewayException e) {
+        return error(HttpStatus.BAD_GATEWAY, e);
+    }
+
     private static ResponseEntity<Map<String, String>> error(HttpStatus status, Exception e) {
         return ResponseEntity.status(status).body(Map.of("error", e.getMessage()));
     }
